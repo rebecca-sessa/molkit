@@ -1,62 +1,47 @@
-#ANALYSIS
-from molkit.molecule import Molecule
 from molkit.database import MoleculeDatabase
-from datetime import datetime
+from molkit.molecule import Molecule
+import numpy as np
+np.set_printoptions(suppress=True, precision=4)
 
 
-def average_MW(database):
-    if not isinstance(database, MoleculeDatabase):
-            raise TypeError(f"This function only accepts MoleculeDatabase class objects")
-    
-    if len(database) == 0:
-                raise ValueError("Database is empty!")
+def db_norm_similarity(moldb: MoleculeDatabase):
 
-    else:
-        nom = 0
-        dnom = 0
-        
-        for m in database:
-            nom = nom + m.molweight
-            dnom = dnom + 1
-            
-        else:
-            mean = nom / dnom
-            dt = datetime.now() #current
-        
-            return f"""The average molecular weight of the database is: {mean} g/mol.
-Analysis performed on: {dt}"""
+    data = []
 
+    for molecule in moldb:
+        data.append([
+            molecule.molweight,
+            molecule.logP,
+            molecule.tpsa,
+            molecule.HeavyAtomCount
+        ])
 
-def heaviest_mol(database):
-    heaviest = 0
-    name = ""
-    
-    if not isinstance(database, MoleculeDatabase):
-            raise TypeError(f"This function only accepts MoleculeDatabase class objects")
-    
-    else:
-        for m in database:
-            if m.molweight > heaviest:
-                heaviest = m.molweight
-                name = m.name
-        dt = datetime.now() #current
-        
-        return f"""The heaviest molecule is {name} with a molecular weight of {heaviest} g/mol.
-Analysis performed on: {dt}"""
+    data = np.array(data)
 
+    # stats
+    mean_col = np.mean(data, axis=0)
+    std_col = np.std(data, axis=0)
 
-def filterby_logP(database, treshold):
-    filtered = MoleculeDatabase()
-    
-    if not isinstance(database, MoleculeDatabase):
-            raise TypeError(f"This function only accepts MoleculeDatabase class objects")
-    
-    else:
-        for m in database:
-            if m.logP > treshold:
-                filtered.add_molecule(m)
-        dt = datetime.now() #current
-        
-        return f"""Filtered molecules in {database} following {treshold} treshold:
-        {filtered}
-Analysis performed on: {dt}"""
+    # standardizzare z score
+    zscore = (data - mean_col) / std_col
+
+    # filtrare outlier
+    mask = np.all(np.abs(zscore) <= 1.5, axis=1)
+    filtered_data = data[mask]
+
+    # normalizzare min max
+    mins = filtered_data.min(axis=0)
+    maxs = filtered_data.max(axis=0)
+
+    scaled = (filtered_data - mins) / (maxs - mins)
+
+    # matrice pairwise
+    pairwise = scaled[:, None] - scaled
+
+    # euclidean distances
+    distances = np.linalg.norm(pairwise, axis=2)
+
+    # similarity matrix
+    similarity = 1 / (1 + distances)
+
+    return scaled, similarity

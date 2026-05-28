@@ -1,2 +1,2 @@
-```txt id="jlwm4m"
-#standard libs for now
+numpy>=2.0
+requests>=2.0

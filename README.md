@@ -9,6 +9,27 @@ Mini cheminformatics toolkit written in Python.
 - Molecular weight analysis
 - logP filtering
 - CSV import/export
+- NumPy-based molecular analysis
+- Feature normalization and scaling
+- Outlier detection
+- Pairwise similarity matrices
+
+## Structure section
+
+molkit/
+│
+├── molecule.py
+├── database.py
+├── analysis.py
+├── utils.py
+└── api_clients/
+
+## Dependencies
+
+- NumPy, requests
+
+pip install -r requirements.txt
+
 
 ## Examples
 
@@ -20,20 +41,14 @@ Common abbreviations are:
 
 ```python
 #molecule.py
-from molkit.molecule import Molecule
 ibu = Molecule(name="Ibuprofen", molweight=200, logP=2.1)
 
 #database.py
-from molkit.database import MoleculeDatabase
 db1 = MoleculeDatabase()
-db1.add_mol(ibu)
+get_compound_and_data(molname, moldb)
 
 #analysis.py
-from molkit.analysis import average_db, heaviest_db, lipophilic_mol
-average_db = average_MW(db1)
-print(average_db)
+scaled, similarity = db_normalization(mol_database)
 
 #utils.py
-from molkit.utils import db_to_csv, csv_to_db
-fp_db = "user/path/of/choice"
-db_to_csv(db1, fp_db)
+export_csv(database, filepath)
