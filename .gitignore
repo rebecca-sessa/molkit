@@ -1,4 +1,29 @@
-.DS_Store
-.vscode/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Virtual environments
+.venv/
+env/
+ENV/
+
+# Conda
+conda-meta/
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/

@@ -1,20 +1,53 @@
-from molkit.molecule import Molecule
+"""
+MolKit main entry point.
+
+Example workflow demonstrating:
+- molecule retrieval from PubChem
+- database creation
+- molecular analysis
+- dataset generation
+- CSV export/import
+
+This script is intended for testing and development.
+"""
+
 from molkit.database import MoleculeDatabase
-from molkit.analysis import db_norm_similarity
-from molkit.utils import export_csv, import_database
-from molkit.api_clients.pubchem_client import get_compound_and_data
-import requests
-import csv
-import numpy as np
-np.set_printoptions(suppress=True, precision=4)
+from molkit.analysis import report
+from molkit.utils import export_csv
+from molkit.api_clients.pubchem_client import fetch_compound
+from molkit.datasets import build_training_set
 
 
 def main():
-    print("=== Molecule Toolkit ===")
-    print("1. Add molecule")
-    print("2. Show database")
-    print("3. Run analysis")
-    print("Common abbreviations in this code: mol for molecule, db for database, fp for filepath")
+    """
+    Demonstration workflow for MolKit.
+    """
+
+    db = MoleculeDatabase()
+
+    compounds = [
+        "aspirin",
+        "caffeine",
+        "ibuprofen",
+        "paracetamol"
+    ]
+
+    for compound in compounds:
+        fetch_compound(compound, db)
+
+    print(report(db))
+
+    df = db.to_dataframe()
+
+    print("\nDatabase preview:")
+    print(df.head())
+
+    X_train, X_test, y_train, y_test = build_training_set(db)
+
+    print("\nTraining set shape:")
+    print(X_train.shape)
+
+    export_csv(db, "molecules.csv")
 
 
 if __name__ == "__main__":
