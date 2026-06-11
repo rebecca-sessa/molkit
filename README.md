@@ -1,14 +1,8 @@
 # MolKit
 
-MolKit is a lightweight cheminformatics toolkit written in Python for learning and experimenting with molecular data analysis, dataset preparation, and basic machine learning workflows.
+MolKit is an educational cheminformatics toolkit written in Python for learning molecular data analysis, chemical informatics, visualization and machine-learning dataset preparation.
 
-This is my first Python project, developed as an educational toolkit to explore concepts in:
-
-- Cheminformatics
-- Computational drug discovery
-- Molecular descriptors
-- Data analysis with NumPy and Pandas
-- Machine learning dataset preparation
+The project was developed as a hands-on learning exercise in Python, cheminformatics and computational drug discovery.
 
 ---
 
@@ -16,72 +10,97 @@ This is my first Python project, developed as an educational toolkit to explore 
 
 ### Molecular representation
 
-- Molecule objects with common physicochemical descriptors
+- Molecule objects
 - Canonical SMILES support
-- PubChem Compound ID integration
+- PubChem Compound IDs
+- RDKit integration
+- Morgan fingerprints
+- MACCS fingerprints
 
 ### Molecular databases
 
-- Store and manage collections of molecules
+- Store collections of molecules
 - Add and remove compounds
-- Convert molecular collections into Pandas DataFrames
+- Retrieve compounds from PubChem
+- Convert databases into Pandas DataFrames
 
-### PubChem integration
+### Drug-likeness analysis
 
-Retrieve molecular descriptors directly from PubChem:
+- Lipinski Rule of Five
+- Veber criteria
+- Drug-likeness reports
 
-- Molecular weight
-- Molecular formula
-- XLogP
-- TPSA
-- Heavy atom count
-- Hydrogen bond donor count
-- Hydrogen bond acceptor count
-- Canonical SMILES
+### Similarity analysis
 
-### Molecular analysis
+- Tanimoto similarity
+- Similarity search
+- Pairwise similarity matrices
 
-- Lipinski Rule of Five evaluation
-- Molecular descriptor normalization
-- Outlier filtering using Z-scores
-- Pairwise molecular similarity matrices
+### Descriptor analysis
 
-### Dataset preparation
+- Descriptor correlation matrices
+- Correlation ranking
+- Descriptor distributions
+- Pairplots
+- Outlier detection
+- Descriptor summaries
 
-Create machine learning ready datasets:
+### Chemical space analysis
 
-- Training/test split
-- Feature matrix generation
-- Target vector generation
+- PCA projection
+- Molecular clustering
+- Cluster representative selection
+
+### Scaffold analysis
+
+- Bemis-Murcko scaffold extraction
+- Scaffold frequency analysis
+
+### Visualization
+
+- Similarity heatmaps
+- PCA plots
+- Cluster plots
+- Similarity networks
+- Substructure highlighting
+- Murcko scaffold highlighting
 
 ### Data import/export
 
 - CSV export
 - CSV import
-- Database reconstruction from saved files
+- Database reconstruction
+
+### Dataset preparation
+
+- Train/test split generation
+- Feature matrix generation
+- Target vector generation
+- Machine-learning dataset preparation
 
 ---
 
-## Project structure
+## Project Structure
 
 ```text
 molkit/
 │
-├── main.py
+├── README.md
+├── ROADMAP.md
 ├── pyproject.toml
 ├── requirements.txt
-├── README.md
 │
 └── molkit/
     ├── __init__.py
     ├── molecule.py
     ├── database.py
+    ├── pubchem_client.py
     ├── analysis.py
-    ├── datasets.py
-    ├── utils.py
-    │
-    └── api_clients/
-        └── pubchem_client.py
+    ├── visualization.py
+    ├── descriptors.py
+    ├── reports.py
+    ├── io.py
+    └── datasets.py
 ```
 
 ---
@@ -95,7 +114,7 @@ git clone https://github.com/rebecca-sessa/molkit.git
 cd molkit
 ```
 
-Create and activate a virtual environment:
+Create a conda environment:
 
 ```bash
 conda create -n molkit python=3.13
@@ -110,64 +129,124 @@ pip install -r requirements.txt
 
 ---
 
-## Quick start
+## Quick Start
 
 ```python
 from molkit.database import MoleculeDatabase
-from molkit.api_clients.pubchem_client import fetch_compound
-from molkit.analysis import report
 
 db = MoleculeDatabase()
 
-fetch_compound("aspirin", db)
-fetch_compound("caffeine", db)
+db.add_compounds([
+    "aspirin",
+    "caffeine",
+    "ibuprofen"
+])
+
+print(db)
+```
+
+---
+
+## Drug-Likeness Analysis
+
+```python
+from molkit.analysis import calculate_lipinski
+
+calculate_lipinski(db)
+```
+
+---
+
+## Similarity Search
+
+```python
+from molkit.analysis import similarity_search
+
+results = similarity_search(
+    db,
+    target_name="aspirin",
+    top_n=3
+)
+
+print(results)
+```
+
+---
+
+## Descriptor Analysis
+
+```python
+from molkit.descriptors import descriptor_summary
+
+summary = descriptor_summary(db)
+
+print(summary)
+```
+
+---
+
+## Reporting
+
+```python
+from molkit.reports import report
 
 print(report(db))
 ```
 
 ---
 
-## Example: DataFrame conversion
+## Dataset Preparation
 
 ```python
-df = db.to_dataframe()
+from molkit.analysis import calculate_lipinski
+from molkit.datasets import prepare_ml_dataset
 
-print(df.head())
+calculate_lipinski(db)
+
+X_train, X_test, y_train, y_test = prepare_ml_dataset(db)
 ```
 
 ---
 
-## Example: Machine Learning dataset
+## Educational Purpose
 
-```python
-from molkit.datasets import build_training_set
+MolKit is primarily intended as a learning project exploring:
 
-X_train, X_test, y_train, y_test = build_training_set(db)
-```
-
----
-
-## Current development status
-
-Current version focuses on:
-
+- Python programming
+- Cheminformatics
 - Molecular descriptors
 - Data analysis
-- Dataset engineering
+- Scientific computing
+- Computational drug discovery
+- Machine learning workflows
+
+The code prioritizes readability and educational value over production-level optimization.
+
+---
+
+## Current Version
+
+Current stable version:
+
+**v0.2.0**
+
+Focus areas:
+
+- Molecular databases
+- Descriptor analysis
+- Similarity analysis
+- Visualization
+- Dataset preparation
+
+---
 
 ## Roadmap
 
-Planned future developments:
+Planned for v0.3.0:
 
-- Improved molecular database reporting
-- Advanced Pandas-based analysis
-- Molecular descriptor visualization
-- Correlation analysis between descriptors
-- Machine learning workflows
-- Additional molecular data sources
-
----
-
-## Educational purpose
-
-MolKit is primarily intended as a learning project to explore Python programming, cheminformatics, data science, and computational drug discovery workflows.
+- Scikit-Learn models
+- Molecular classification workflows
+- Model evaluation
+- Cross-validation
+- Feature importance analysis
+- Additional machine-learning utilities

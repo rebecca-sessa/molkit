@@ -12,12 +12,16 @@ from molkit.molecule import Molecule
 
 def export_csv(database: MoleculeDatabase, file_path_name: str):
     """
-    Export a molecular database to CSV.
+    Export a molecular database to a CSV file.
 
     Parameters
     ----------
     database : MoleculeDatabase
     file_path_name : str
+
+    Returns
+    -------
+    None
     """
 
     if not isinstance(database, MoleculeDatabase):
@@ -49,7 +53,7 @@ def import_database(filepath: str):
     """
     db = MoleculeDatabase()
 
-    with open(filepath) as mol_csv:
+    with open(filepath, newline="", encoding="utf-8") as mol_csv:
         reader = csv.reader(mol_csv)
         next(reader)
 

@@ -4,74 +4,39 @@ Molecular analysis utilities.
 Contains functions for similarity analysis,
 drug-likeness evaluation and database reporting.
 """
-
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import pandas as pd
+from molkit.molecule import Molecule
 from molkit.database import MoleculeDatabase
+from rdkit import Chem
+from rdkit.Chem.Scaffolds import MurckoScaffold
+from rdkit import DataStructs
+from rdkit.DataStructs import TanimotoSimilarity
+
 import numpy as np
 np.set_printoptions(suppress=True, precision=4)
 
 
-def db_norm_similarity(moldb: MoleculeDatabase, z_threshold=1.5):
-    """
-    Compute a normalized similarity matrix.
+"""
+Molecular analysis utilities.
 
-    Molecular descriptors are standardized,
-    filtered for outliers and min-max scaled
-    before pairwise Euclidean distances are
-    converted into similarity scores.
+Provides functions for:
 
-    Parameters
-    ----------
-    moldb : MoleculeDatabase
-    z_threshold : float
+- Drug-likeness evaluation (Lipinski, Veber)
+- Molecular similarity analysis
+- Substructure searching
+- Chemical space projection (PCA)
+- Molecular clustering
+- Scaffold analysis
 
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        Scaled descriptor matrix and similarity matrix.
-    """
-    data = []
+These functions operate on MoleculeDatabase objects
+and return numerical results, tables or molecular
+annotations suitable for further processing.
+"""
 
-    for molecule in moldb:
-        data.append([
-            molecule.molweight,
-            molecule.logp,
-            molecule.tpsa,
-            molecule.heavy_atom_count
-        ])
 
-    data = np.array(data)
-
-    # stats
-    mean_col = np.mean(data, axis=0)
-    std_col = np.std(data, axis=0)
-
-    # standardizzare z score
-    zscore = (data - mean_col) / std_col
-
-    # filtrare outlier
-    mask = np.all(np.abs(zscore) <= z_threshold, axis=1)
-    filtered_data = data[mask]
-
-    # normalizzare min max
-    mins = filtered_data.min(axis=0)
-    maxs = filtered_data.max(axis=0)
-
-    ranges = maxs - mins
-    ranges[ranges == 0] = 1
-
-    scaled = (filtered_data - mins) / ranges
-
-    # matrice pairwise
-    pairwise = scaled[:, None] - scaled
-
-    # euclidean distances
-    distances = np.linalg.norm(pairwise, axis=2)
-
-    # similarity matrix
-    similarity = 1 / (1 + distances)
-
-    return scaled, similarity
-
+# Drug - likeness filtering
 
 def calculate_lipinski(database: MoleculeDatabase):
     """
@@ -94,34 +59,325 @@ def calculate_lipinski(database: MoleculeDatabase):
     return database
 
 
-def report(database: MoleculeDatabase):
+def calculate_veber(database: MoleculeDatabase):
     """
-    Generate a summary report for a molecular database.
+    Evaluate Veber's oral bioavailability criteria.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
 
     Returns
     -------
-    str
-        Human-readable report.
+    pandas.DataFrame
+    DataFrame containing TPSA, rotatable bonds
+    and Veber compliance for each molecule.
     """
+    veber_flt = []
 
-    calculate_lipinski(database)
-    df = database.to_dataframe()
+    for m in database:
+        if m.tpsa < 140 and m.rotatable_bonds < 10:
+            veber = True
+        else:
+            veber = False
 
-    # mol count
-    counter = len(df)
+        mol = {
+            "name": m.name,
+            "cid": m.cid,
+            "molecular_formula": m.molformula,
+            "mw": m.molweight,
+            "tpsa": m.tpsa,
+            "rotatable_bonds": m.rotatable_bonds,
+            "rdkit object": m.rdkit_mol,
+            "veber filter": veber
+        }
 
-    # mean mw and logp
-    mean_mw = df["mw"].mean()
-    mean_logp = df["logp"].mean()
+        veber_flt.append(mol)
 
-    # druglike
-    dl = len(df[df["drug_like_lipinski"]])
-    ndl = len(df[~df["drug_like_lipinski"]])
+    df = pd.DataFrame(veber_flt)
 
-    return f"""\nReport:
-    \nCount: {counter} molecules
-    Average MW: {mean_mw:.3f} g/mol
-    Average LogP: {mean_logp:.3f}
-    Drug like: {dl} molecules
-    \nNon drug like: {ndl} molecules
+    return df
+
+
+# Similarity
+
+def tanimoto_similarity(mol_a: Molecule, mol_b: Molecule):
     """
+    Compute Tanimoto similarity between two molecules.
+
+    Parameters
+    ----------
+    mol_a : Molecule
+    mol_b : Molecule
+
+    Returns
+    -------
+    float
+    Tanimoto coefficient between Morgan fingerprints.
+    """
+    r = TanimotoSimilarity(mol_a.morgan_fp, mol_b.morgan_fp)
+    return r
+
+
+def similarity_search(database: MoleculeDatabase, target_name: str, top_n):
+    """
+    Find the most similar molecules to a target compound.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+    target_name : str
+    top_n : int
+
+    Returns
+    -------
+    list[dict]
+    Molecules ranked by Tanimoto similarity.
+    """
+    target = None
+
+    for i in database:
+        if i.name == target_name:
+            target = i
+            break
+
+    if target is None:
+        raise ValueError(
+
+            f"Molecule '{target_name}' not found"
+
+        )
+
+    sim = []
+    for i in database:
+        if i is not target:
+            name_dict = i.name
+            sim_dict = tanimoto_similarity(i, target)
+            d = {
+                "name": name_dict,
+                "similarity": sim_dict
+            }
+            sim.append(d)
+
+    sim_sorted = sorted(sim, key=lambda x: x['similarity'], reverse=True)
+
+    out = sim_sorted[:top_n]
+
+    return out
+
+
+def similarity_matrix(database: MoleculeDatabase):
+    """
+    Compute pairwise Tanimoto similarity matrix.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+
+    Returns
+    -------
+    numpy.ndarray
+    Square similarity matrix.
+    """
+    n_mol = len(database)
+
+    m = np.zeros((n_mol, n_mol))
+
+    for i in range(n_mol):
+        for j in range(n_mol):
+            mol1 = database[i]
+            mol2 = database[j]
+            ris = tanimoto_similarity(mol1, mol2)
+            m[i, j] = ris
+
+    return m
+
+
+#  Substructure search
+
+def substructure_search(database: MoleculeDatabase, smarts):
+    """
+    Search molecules containing a SMARTS pattern.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+    smarts : str
+
+    Returns
+    -------
+    list[Molecule]
+    Molecules matching the query pattern.
+    """
+    res = []
+    pattern = Chem.MolFromSmarts(smarts)
+
+    for i in database:
+        struct = i.rdkit_mol
+        subst = struct.HasSubstructMatch(pattern)
+        if subst == True:
+            res.append(i)
+
+    return res
+
+
+# Dimensionality reduction
+
+def pca_coordinates(database: MoleculeDatabase):
+    """
+    Project molecular fingerprints into a lower-dimensional space.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+
+    Returns
+    -------
+    tuple
+    PCA coordinates and corresponding DataFrame.
+    """
+    matrix = []
+
+    for m in database:
+        fp = m.morgan_fp
+        arr = np.zeros((2048,), dtype=int)
+        DataStructs.ConvertToNumpyArray(fp, arr)
+        matrix.append(arr)
+
+    X = np.array(matrix)
+
+    pca = PCA(n_components=2)
+    coords = pca.fit_transform(X)
+
+    x_ax = coords[:, 0]
+    y_ax = coords[:, 1]
+
+    names = [m.name for m in database]
+
+    graph = {
+        "mol_name": names,
+        "PC1": x_ax,
+        "PC2": y_ax
+    }
+
+    df_pca = pd.DataFrame(graph)
+
+    return coords, df_pca
+
+
+# Clustering
+
+def cluster_molecules(database: MoleculeDatabase, cluster_number):
+    """
+    Cluster molecules using K-Means on PCA coordinates.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+    cluster_number : int
+
+    Returns
+    -------
+    pandas.DataFrame
+    PCA coordinates with assigned cluster labels.
+    """
+    coords, df_pca = pca_coordinates(database)
+
+    kmeans = KMeans(n_clusters=cluster_number, random_state=42)
+    groups = kmeans.fit_predict(coords)
+    df_pca["Cluster"] = groups
+
+    return df_pca
+
+
+def cluster_representatives(database: MoleculeDatabase, cluster_number):
+    """
+    Identify representative molecules for each cluster.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+    cluster_number : int
+
+    Returns
+    -------
+    list[Molecule]
+    Representative molecule of each cluster.
+    """
+    df_pca = cluster_molecules(database, cluster_number)
+    rep = []
+
+    for i in range(cluster_number):
+        cluster = df_pca[df_pca["Cluster"] == i]
+        c_names = cluster["mol_name"].tolist()
+        c_mols = [m for m in database if m.name in c_names]
+        best_score = -1
+        represent = None
+
+        for mol_a in c_mols:
+            t = 0
+            for mol_b in c_mols:
+                t += tanimoto_similarity(mol_a, mol_b)
+
+            if t > best_score:
+                best_score = t
+                represent = mol_a
+
+        rep.append(represent)
+
+    return rep
+
+
+# Scaffolds
+
+def get_murcko_scaffold(database: MoleculeDatabase, molecule_name):
+    """
+    Extract the Bemis-Murcko scaffold of a molecule.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+    molecule_name : str
+
+    Returns
+    -------
+    str | None
+    Scaffold SMILES if found.
+    """
+    for m in database:
+        if m.name == molecule_name:
+            structure = m.rdkit_mol
+
+            scaffold_smiles = MurckoScaffold.MurckoScaffoldSmiles(
+                mol=structure)
+
+            return scaffold_smiles
+
+    print(f"Molecola '{molecule_name}' non trovata nel database.")
+    return None
+
+
+def scaffold_frequency(database: MoleculeDatabase):
+    """
+    Count scaffold occurrences in a molecular database.
+
+    Parameters
+    ----------
+    database : MoleculeDatabase
+
+    Returns
+    -------
+    pandas.Series
+    Scaffold frequencies sorted by occurrence.
+    """
+    smiles = []
+
+    for m in database:
+        structure = m.rdkit_mol
+        scaffold_smiles = MurckoScaffold.MurckoScaffoldSmiles(mol=structure)
+
+        smiles.append(scaffold_smiles)
+
+    smi = pd.Series(smiles)
+
+    return smi.value_counts()

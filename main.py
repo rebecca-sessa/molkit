@@ -1,48 +1,44 @@
 """
-MolKit main entry point.
+MolKit example workflow.
 
-Example workflow demonstrating:
-- molecule retrieval from PubChem
-- database creation
-- molecular analysis
-- dataset generation
-- CSV export/import
+Demonstrates:
 
-This script is intended for testing and development.
+- compound retrieval from PubChem
+- molecular database management
+- drug-likeness analysis
+- reporting
+- dataset preparation
+- CSV export
 """
 
 from molkit.database import MoleculeDatabase
-from molkit.analysis import report
-from molkit.utils import export_csv
-from molkit.api_clients.pubchem_client import fetch_compound
-from molkit.datasets import build_training_set
+
+from molkit.analysis import calculate_lipinski
+from molkit.reports import report
+
+from molkit.datasets import prepare_ml_dataset
+from molkit.io import export_csv
 
 
 def main():
-    """
-    Demonstration workflow for MolKit.
-    """
 
     db = MoleculeDatabase()
 
-    compounds = [
+    db.add_compounds([
         "aspirin",
         "caffeine",
         "ibuprofen",
         "paracetamol"
-    ]
+    ])
 
-    for compound in compounds:
-        fetch_compound(compound, db)
+    calculate_lipinski(db)
 
     print(report(db))
 
-    df = db.to_dataframe()
-
     print("\nDatabase preview:")
-    print(df.head())
+    print(db.to_dataframe().head())
 
-    X_train, X_test, y_train, y_test = build_training_set(db)
+    X_train, X_test, y_train, y_test = prepare_ml_dataset(db)
 
     print("\nTraining set shape:")
     print(X_train.shape)

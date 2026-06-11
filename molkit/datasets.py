@@ -10,10 +10,9 @@ import numpy as np
 np.set_printoptions(suppress=True, precision=4)
 
 
-def build_training_set(database: MoleculeDatabase, test_size: float = 0.2):
+def prepare_ml_dataset(database: MoleculeDatabase, test_size: float = 0.2, random_state: int = 42):
     """
-    Split molecular descriptors into training
-    and testing datasets.
+    Prepare a machine-learning dataset from a molecular database.
 
     Features
     --------
@@ -30,40 +29,52 @@ def build_training_set(database: MoleculeDatabase, test_size: float = 0.2):
     ----------
     database : MoleculeDatabase
     test_size : float
+    random_state : int
 
     Returns
     -------
-    tuple
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
         X_train, X_test, y_train, y_test
     """
+
+    if any(m.drug_like_lipinski is None for m in database):
+        raise ValueError(
+            "Run calculate_lipinski() before preparing the dataset."
+        )
 
     data = []
 
     for mol in database:
-        data.append([mol.molweight,
-                     mol.logp,
-                     mol.hba,
-                     mol.hbd,
-                     mol.drug_like_lipinski])
+        data.append([
+            mol.molweight,
+            mol.logp,
+            mol.hba,
+            mol.hbd,
+            int(mol.drug_like_lipinski)
+        ])
 
-    data_arr = np.array(data)
+    data = np.array(data, dtype=float)
 
-    n_test = int(len(data_arr) * test_size)
+    n_test = int(len(data) * test_size)
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(random_state)
 
-    test_indices = rng.choice(len(data_arr), size=n_test, replace=False)
+    test_indices = rng.choice(
+        len(data),
+        size=n_test,
+        replace=False
+    )
 
-    mask_test = np.zeros(len(data_arr), dtype=bool)
-    mask_test[test_indices] = True
+    mask = np.zeros(len(data), dtype=bool)
+    mask[test_indices] = True
 
-    mol_test = data_arr[mask_test]
-    mol_train = data_arr[~mask_test]
+    train = data[~mask]
+    test = data[mask]
 
-    X_test = mol_test[:, :4]
-    y_test = mol_test[:, 4]
+    X_train = train[:, :4]
+    y_train = train[:, 4].astype(int)
 
-    X_train = mol_train[:, :4]
-    y_train = mol_train[:, 4]
+    X_test = test[:, :4]
+    y_test = test[:, 4].astype(int)
 
     return X_train, X_test, y_train, y_test

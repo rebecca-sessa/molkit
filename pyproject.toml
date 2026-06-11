@@ -1,15 +1,22 @@
 [project]
 name = "molkit"
-version = "0.1.0"
-description = "Mini educational cheminformatics toolkit"
+version = "0.2.0"
+description = "Educational cheminformatics toolkit for molecular analysis and data exploration"
 authors = [
-  {name = "Rebecca"}
+  { name = "Rebecca" }
 ]
+
 readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
     "numpy>=2.0",
     "pandas>=2.0",
-    "requests>=2.0"
+    "requests>=2.0",
+    "rdkit",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "networkx",
+    "ipython"
 ]

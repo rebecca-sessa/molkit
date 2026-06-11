@@ -8,6 +8,7 @@ DataFrames.
 
 import pandas as pd
 from molkit.molecule import Molecule
+from molkit.api_clients.pubchem_client import _fetch_compound
 
 
 class MoleculeDatabase(list):
@@ -32,11 +33,10 @@ class MoleculeDatabase(list):
         self.append(item)
 
     def remove_molecule(self, item):
-        try:
+        if item not in self:
+            raise ValueError(f"{item} not found in database")
+        else:
             self.remove(item)
-            return f"{item.name} has been removed from the database!"
-        except ValueError:
-            return f"{item.name} is not in {self} and cannot be removed."
 
     def list_mols(self):
         """
@@ -46,10 +46,7 @@ class MoleculeDatabase(list):
         -------
         list[str]
         """
-        names = []
-        for m in self:
-            names.append(m.name)
-        return names
+        return [m.name for m in self]
 
     def to_dataframe(self):
         """
@@ -60,3 +57,29 @@ class MoleculeDatabase(list):
         pandas.DataFrame
         """
         return pd.DataFrame([mol.to_dict() for mol in self])
+
+    def add_compounds(self, molname):
+        """
+        Retrieve compounds from PubChem
+        and add them to the database.
+
+        Parameters
+        ----------
+        molname : str | list[str]
+        """
+
+        _fetch_compound(molname, self)
+
+    def __repr__(self):
+        return f"MoleculeDatabase(n_molecules={len(self)})"
+
+    def __str__(self):
+        return (
+            f"MoleculeDatabase "
+            f"containing {len(self)} molecules")
+
+    def get(self, name):
+        for mol in self:
+            if mol.name == name:
+                return mol
+        return None

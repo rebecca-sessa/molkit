@@ -27,3 +27,11 @@ conda-meta/
 # Coverage
 .coverage
 htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local files
+*.csv
